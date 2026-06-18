@@ -66,6 +66,9 @@ print(f"晚上10点后公共交通上车刷卡量为：{late_count} 次，占全
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
+# 修复：绘图前清理所有画布，避免多次运行图形叠加
+plt.close('all')
+
 # 统计0~23每个小时的刷卡量，补全无数据的小时为0
 hours_all = np.arange(24)
 hour_counts = df_board.groupby("hour").size().reindex(hours_all, fill_value=0).values
@@ -99,8 +102,84 @@ plt.grid(axis="y", linestyle="--", alpha=0.7)
 
 # 保存图像，dpi=150
 plt.savefig("hour_distribution.png", dpi=150, bbox_inches="tight")
-
-# 显示图表（可根据需要删除，不影响保存结果）
-plt.show()
+# 修复：移除 plt.show()，消除阻塞，代码可连续执行
 
 print("\n[任务2(b)] 已保存图像：hour_distribution.png")
+
+
+# ===================== 任务3 线路站点分析 =====================
+# ---------- 3(a) 定义统计函数并打印结果 ----------
+def analyze_route_stops(df, route_col='线路号', stops_col='ride_stops'):
+    """
+    计算各线路乘客的平均搭乘站点数及其标准差。
+    Parameters
+    ----------
+    df : pd.DataFrame  预处理后的数据集
+    route_col : str    线路号列名
+    stops_col : str    搭乘站点数列名
+    Returns
+    -------
+    pd.DataFrame  包含列：线路号、mean_stops、std_stops，按 mean_stops 降序排列
+    """
+    # 按线路分组，计算搭乘站点数的均值与标准差
+    route_stats = df.groupby(route_col)[stops_col].agg(['mean', 'std']).reset_index()
+    # 重命名列名，与要求的输出列一致
+    route_stats.columns = [route_col, 'mean_stops', 'std_stops']
+    # 按平均站点数降序排序并重置索引
+    route_stats = route_stats.sort_values('mean_stops', ascending=False).reset_index(drop=True)
+    return route_stats
+
+# 调用函数获取全线路统计结果
+route_result = analyze_route_stops(df)
+
+# 打印前10行统计结果
+print("\n[任务3] 每条线路的平均搭乘站点数及标准差（前10行）：")
+print(route_result.head(10))
+
+
+# ---------- 3(b) Top15线路水平条形图可视化 ----------
+import seaborn as sns
+
+# 修复：绘图前再次清理画布，确保与任务2的图完全独立
+plt.close('all')
+
+# 提取平均站点数最高的前15条线路
+top15_routes = route_result.head(15)
+
+plt.figure(figsize=(10, 8))
+# 修复：绑定hue并关闭图例，消除FutureWarning
+sns.barplot(
+    data=top15_routes,
+    y='线路号',
+    x='mean_stops',
+    hue='线路号',
+    palette='Blues_d',
+    orient='h',
+    legend=False
+)
+
+# 手动添加标准差误差棒
+y_positions = np.arange(len(top15_routes))
+plt.errorbar(
+    x=top15_routes['mean_stops'],
+    y=y_positions,
+    xerr=top15_routes['std_stops'],
+    fmt='none',
+    ecolor='black',
+    capsize=0.3
+)
+
+# 图表标注设置
+plt.title('Top 15 Routes: Mean Ride Stops (with Std Dev)', fontsize=13, pad=12)
+plt.xlabel('Mean Ride Stops', fontsize=11)
+plt.ylabel('Route ID', fontsize=11)
+# x轴从0起始
+plt.xlim(left=0)
+# 添加垂直网格线
+plt.grid(axis='y', linestyle='-', alpha=0.7)
+
+# 保存图像，dpi=150
+plt.savefig('route_stops.png', dpi=150, bbox_inches='tight')
+# 修复：移除 plt.show()，消除阻塞
+
+print("\n[任务3] 已保存图像：route_stops.png")
