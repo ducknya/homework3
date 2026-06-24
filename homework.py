@@ -224,3 +224,37 @@ max_15min_end_str = (max_15min_start_time + pd.Timedelta(minutes=15)).strftime('
 PHF15 = peak_hour_total / (4 * max_15min_value)
 PHF15_str = f"{PHF15:.4f}"
 print(f"最大15分钟刷卡量（{max_15min_start_str}~{max_15min_end_str}）：{max_15min_value} 次 PHF15 = {peak_hour_total} / (4 × {max_15min_value}) = {PHF15_str}")
+
+# ===================== 任务5 线路驾驶员信息批量导出 =====================
+import os
+
+print("\n[任务5] 已生成20个文件，路径如下：")
+
+# 1. 筛选线路号在 1101 ~ 1120 之间的所有记录
+df_target_routes = df[(df["线路号"] >= 1101) & (df["线路号"] <= 1120)].copy()
+
+# 2. 在根目录创建「线路驾驶员信息」文件夹
+folder_name = "线路驾驶员信息"
+os.makedirs(folder_name, exist_ok=True)  # 文件夹已存在时不会报错
+
+# 3. 按线路号分组，逐个导出 txt 文件
+for route_id, group_data in df_target_routes.groupby("线路号"):
+    # 提取「车辆编号 → 驾驶员编号」对应关系并去重
+    # ⚠️ 注意：如果你的列名不是「车辆编号」「驾驶员编号」，替换为实际列名即可
+    driver_pairs = group_data[["车辆编号", "驾驶员编号"]].drop_duplicates()
+
+    # 确保线路号为纯整数格式（避免 1101.0 这类小数格式）
+    route_str = str(int(route_id))
+    # 构造文件完整路径
+    file_path = os.path.join(folder_name, f"{route_str}.txt")
+
+    # 写入 txt 文件
+    with open(file_path, "w", encoding="utf-8") as f:
+        # 第一行写入线路号信息
+        f.write(f"线路号: {route_str}\n")
+        # 逐行写入「车辆编号 + 制表符 + 驾驶员编号」
+        for _, row in driver_pairs.iterrows():
+            f.write(f"{int(row['车辆编号'])}\t{int(row['驾驶员编号'])}\n")
+
+    # 按题目示例格式打印路径（Windows反斜杠风格）
+    print(f"{folder_name}\\{route_str}.txt")
