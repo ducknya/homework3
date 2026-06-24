@@ -235,26 +235,84 @@ df_target_routes = df[(df["线路号"] >= 1101) & (df["线路号"] <= 1120)].cop
 
 # 2. 在根目录创建「线路驾驶员信息」文件夹
 folder_name = "线路驾驶员信息"
-os.makedirs(folder_name, exist_ok=True)  # 文件夹已存在时不会报错
+os.makedirs(folder_name, exist_ok=True)
 
 # 3. 按线路号分组，逐个导出 txt 文件
 for route_id, group_data in df_target_routes.groupby("线路号"):
     # 提取「车辆编号 → 驾驶员编号」对应关系并去重
-    # ⚠️ 注意：如果你的列名不是「车辆编号」「驾驶员编号」，替换为实际列名即可
     driver_pairs = group_data[["车辆编号", "驾驶员编号"]].drop_duplicates()
 
-    # 确保线路号为纯整数格式（避免 1101.0 这类小数格式）
     route_str = str(int(route_id))
-    # 构造文件完整路径
     file_path = os.path.join(folder_name, f"{route_str}.txt")
 
     # 写入 txt 文件
     with open(file_path, "w", encoding="utf-8") as f:
-        # 第一行写入线路号信息
         f.write(f"线路号: {route_str}\n")
-        # 逐行写入「车辆编号 + 制表符 + 驾驶员编号」
         for _, row in driver_pairs.iterrows():
             f.write(f"{int(row['车辆编号'])}\t{int(row['驾驶员编号'])}\n")
 
-    # 按题目示例格式打印路径（Windows反斜杠风格）
+    # 打印路径（循环内只打印文件路径）
     print(f"{folder_name}\\{route_str}.txt")
+
+# ===================== 任务6 服务绩效排名与热力图 =====================
+# ✅ 注意：任务6代码在这里，和for循环同级，只会执行1次
+print("\n[任务6] 服务绩效排名统计：")
+
+# 1. 统计四个维度的Top10有效上车服务人次
+driver_top10 = df_board.groupby('驾驶员编号').size().sort_values(ascending=False).head(10)
+route_top10 = df_board.groupby('线路号').size().sort_values(ascending=False).head(10)
+station_top10 = df_board.groupby('上车站点').size().sort_values(ascending=False).head(10)
+vehicle_top10 = df_board.groupby('车辆编号').size().sort_values(ascending=False).head(10)
+
+
+# 封装打印函数
+def print_top10(title, top_series):
+    print(f"\n==== {title} Top 10 ====")
+    for i, (idx, count) in enumerate(top_series.items()):
+        print(f"Top{i + 1}: {int(idx)}  Count={count}")
+
+
+print_top10("Driver", driver_top10)
+print_top10("Route", route_top10)
+print_top10("Boarding Station", station_top10)
+print_top10("Vehicles", vehicle_top10)
+
+# 2. 绘制4×10服务绩效热力图
+plt.close('all')
+
+heatmap_data = np.array([
+    driver_top10.values,
+    route_top10.values,
+    station_top10.values,
+    vehicle_top10.values
+])
+
+y_labels = ["Driver", "Route", "Boarding Station", "Vehicle"]
+x_labels = [f"Top{i + 1}" for i in range(10)]
+
+fig, ax = plt.subplots(figsize=(12, 6))
+
+sns.heatmap(
+    heatmap_data,
+    annot=True,
+    fmt='d',
+    cmap='YlOrRd',
+    xticklabels=x_labels,
+    yticklabels=y_labels,
+    ax=ax,
+    cbar=True
+)
+
+plt.suptitle('Service Performance Ranking Heatmap', fontsize=14, y=0.98)
+ax.set_title('Counts of valid boarding records (card type = 0)', fontsize=10, pad=10)
+
+ax.tick_params(axis='x', rotation=0)
+ax.tick_params(axis='y', rotation=0)
+
+plt.savefig('performance_heatmap.png', dpi=150, bbox_inches='tight')
+print("\n[任务6] 已保存图像：performance_heatmap.png")
+
+# 3. 结论说明
+print("\n【任务6】结论说明：")
+print(
+    "从热力图可观察到，司机、线路、站点、车辆四个维度的服务人次均呈现显著的头部集中特征，Top1实体的服务人次远高于同维度后续排名。其中车辆维度的Top1车辆服务量最高，上车站点与线路的头部客流也明显偏高，整体符合“少数主体承载大部分客流”的分布规律。运营方可针对高负荷的Top级线路、站点与车辆优先倾斜运力资源，在高峰时段重点保障核心线路与站点的运营效率。")
