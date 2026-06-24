@@ -183,3 +183,44 @@ plt.savefig('route_stops.png', dpi=150, bbox_inches='tight')
 # 修复：移除 plt.show()，消除阻塞
 
 print("\n[任务3] 已保存图像：route_stops.png")
+
+# ===================== 任务4 高峰小时系数PHF计算 =====================
+print("\n[任务4] 高峰小时系数PHF计算结果：")
+
+# ========== 步骤1：识别高峰小时（以上车刷卡量为统计口径） ==========
+hourly_flow = df_board.groupby(df_board["交易时间"].dt.hour).size()
+peak_hour = hourly_flow.idxmax()
+peak_hour_total = hourly_flow[peak_hour]
+
+peak_start = f"{peak_hour:02d}:00"
+peak_end = f"{peak_hour + 1:02d}:00"
+print(f"高峰小时：{peak_start} ~ {peak_end}，刷卡量：{peak_hour_total} 次")
+
+# ========== 步骤2：筛选高峰小时内的全部上车记录 ==========
+peak_hour_records = df_board[df_board["交易时间"].dt.hour == peak_hour].copy()
+peak_hour_records = peak_hour_records.set_index("交易时间")
+
+# ========== 步骤3：5分钟粒度统计 + PHF5计算 ==========
+# 修复：新版pandas分钟频率用 min 代替 T
+five_min_flow = peak_hour_records.resample('5min').size()
+max_5min_value = five_min_flow.max()
+max_5min_start_time = five_min_flow.idxmax()
+
+max_5min_start_str = max_5min_start_time.strftime('%H:%M')
+max_5min_end_str = (max_5min_start_time + pd.Timedelta(minutes=5)).strftime('%H:%M')
+
+PHF5 = peak_hour_total / (12 * max_5min_value)
+PHF5_str = f"{PHF5:.4f}"
+print(f"最大5分钟刷卡量（{max_5min_start_str}~{max_5min_end_str}）：{max_5min_value} 次 PHF5 = {peak_hour_total} / (12 × {max_5min_value}) = {PHF5_str}")
+
+# ========== 步骤4：15分钟粒度统计 + PHF15计算 ==========
+fifteen_min_flow = peak_hour_records.resample('15min').size()
+max_15min_value = fifteen_min_flow.max()
+max_15min_start_time = fifteen_min_flow.idxmax()
+
+max_15min_start_str = max_15min_start_time.strftime('%H:%M')
+max_15min_end_str = (max_15min_start_time + pd.Timedelta(minutes=15)).strftime('%H:%M')
+
+PHF15 = peak_hour_total / (4 * max_15min_value)
+PHF15_str = f"{PHF15:.4f}"
+print(f"最大15分钟刷卡量（{max_15min_start_str}~{max_15min_end_str}）：{max_15min_value} 次 PHF15 = {peak_hour_total} / (4 × {max_15min_value}) = {PHF15_str}")
