@@ -1,7 +1,7 @@
 # 史浩楠-25361138-第三次人工智能编程作业
 仓库链接: (https://github.com/ducknya/homework3)
 ## 1. 任务拆解与 AI 协作策略
-将任务分开，先让AI读取数据，同时利用图片辅助确定输出的结果按伦理
+将任务分开，先让AI读取数据，同时利用图片辅助确定输出的结果
 ## 2. 核心 Prompt 迭代记录
  初代 Prompt：print(f"最大15分钟刷卡量...")import pandas as pd
  AI 生成的问题：运行直接报 SyntaxError: invalid syntax，报错定位在 print 行末尾。Python 按行解析代码，一行内默认只能有一条独立语句，直接拼接两条语句会触发语法错误。
